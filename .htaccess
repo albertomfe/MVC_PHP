@@ -1,0 +1,85 @@
+#Principales reglas de la reescritura de MVC Framework para enrutar solicitudes a index.php y asegurar el sitio web
+
+# Disables directory listing
+Options -Indexes
+# Poner Apache Rewrite Engine en On
+RewriteEngine On
+
+# Ignora los errores de los directorios no fundados y aplica RewriteRule
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Ignora los errores de los archivos no fundados y aplica la RewriteRule
+RewriteCond %{REQUEST_FILENAME} !-f
+
+# Ignora los errores de los enlaces no fundados y aplica la RewriteRule
+RewriteCond %{REQUEST_FILENAME} !-l
+
+# Una regla simple para enrutar la solicitud de URL a index.php con un parámetro llamado url y que contiene el valor de url solicitado.
+RewriteRule ^(.*)$ index.php?url=$1 [L,QSA]
+
+#Proteccion de archivos
+<Files .htaccess>
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Sitio web seguro utilizando es una directiva de los servidores web Apache , que sirve  para seguir los enlaces simbólicos de un directorio.
+Options +FollowSymlinks
+
+#Oculta la versión y otra información delicada
+ServerSignature Off
+
+
+# Regla # 4a - Bloquea cualquier script que intente bas64_encode crap para enviar a través de URL
+RewriteCond %{QUERY_STRING} base64_encode.*(.*) [OR]
+
+# Regla # 4b: bloquear cualquier secuencia de comandos que incluya una etiqueta <script> en la URL
+RewriteCond %{QUERY_STRING} (<|%3C).*script.*(>|%3E) [NC,OR]
+
+# Regla # 4c: bloquee cualquier secuencia de comandos que intente establecer una variable GLOBALS de PHP a través de la URL
+RewriteCond %{QUERY_STRING} GLOBALS(=|[|%[0-9A-Z]{0,2}) [OR]
+
+# Regla # 4d - Bloquea cualquier script que intente modificar una variable _REQUEST a través de la URL
+RewriteCond %{QUERY_STRING} _REQUEST(=|[|%[0-9A-Z]{0,2})
+
+# Regla # 4e: envíe todas las solicitudes bloqueadas a la página de inicio con 403 ¡Error prohibido!
+RewriteRule ^(.*)$ index.php [F,L]
+
+# Prevent XSS attacks
+RewriteCond %{QUERY_STRING} http://([a-zA-Z0-9_\-]*) [NC,OR]
+RewriteCond %{QUERY_STRING} http:/([a-zA-Z0-9_\-]*) [NC,OR]
+RewriteCond %{QUERY_STRING} cmd= [NC,OR]
+RewriteCond %{QUERY_STRING} &cmd [NC,OR]
+RewriteCond %{QUERY_STRING} exec [NC,OR]
+RewriteCond %{QUERY_STRING} execu [NC,OR]
+RewriteCond %{QUERY_STRING} concat [NC]
+RewriteCond %{REQUEST_METHOD} ^(HEAD|TRACE|DELETE|TRACK) [NC,OR]
+RewriteCond %{THE_REQUEST} ^.*(\|\|%0A|%0D).* [NC,OR]
+RewriteCond %{HTTP_REFERER} ^(.*)(<|>|'|%0A|%0D|%27|%3C|%3E|).* [NC,OR]
+RewriteCond %{HTTP_COOKIE} ^.*(<|>|'|%0A|%0D|%27|%3C|%3E|).* [NC,OR]
+RewriteCond %{REQUEST_URI} ^/(,|;|:|<|>|">|"<|/|\\\.\.\\).{0,9999}.* [NC,OR]
+RewriteCond %{HTTP_USER_AGENT} ^$ [OR]
+RewriteCond %{HTTP_USER_AGENT} ^(java|curl|wget).* [NC,OR]
+RewriteCond %{HTTP_USER_AGENT}^.*(winhttp|HTTrack|clshttp|archiver|loader|email|harvest|extract|grab|miner).* [NC,OR]
+RewriteCond %{HTTP_USER_AGENT} ^.*(libwww-perl|curl|wget|python|nikto|scan).* [NC,OR]
+RewriteCond %{HTTP_USER_AGENT} ^.*(<|>|'|%0A|%0D|%27|%3C|%3E|).* [NC,OR]
+RewriteCond %{QUERY_STRING} ^.*(;|<|>|'|"|\)|%0A|%0D|%22|%27|%3C|%3E|).*(/\*|union|select|insert|cast|set|declare|drop|update|md5|benchmark|print|printf|system|exec|scanf).* [NC,OR]
+RewriteCond %{QUERY_STRING} ^.*(localhost|loopback|127\.0\.0\.1).* [NC,OR]
+RewriteCond %{QUERY_STRING} ^.*(<|>|'|%0A|%0D|%27|%3C|%3E|).* [NC]
+RewriteRule ^.* - [F]
+
+
+# Prevenir inyecciones SQL
+RewriteCond %{QUERY_STRING} UNION([%20\ /\*+]*)ALL([%20\ /\*+]*)SELECT [NC,OR]
+RewriteCond %{QUERY_STRING} UNION([%20\ /\*+]*)SELECT [NC,OR]
+RewriteCond %{QUERY_STRING} /\* [NC,OR]
+RewriteCond %{QUERY_STRING} \*/ [NC]
+RewriteRule ^.* - [F]
+RewriteCond %{QUERY_STRING} base64_encode.*\(.*\) [OR]
+RewriteCond %{QUERY_STRING} http:.*\/.*\/ [OR]
+RewriteCond %{QUERY_STRING} ..*\/ [OR]
+RewriteCond %{QUERY_STRING} (\<|%3C).*script.*(\>|%3E) [NC,OR]
+RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+RewriteCond %{QUERY_STRING} [^az](declare|char|set|cast|convert|delete|drop|exec|insert|meta|script|select|truncate|update)[^a-z] [NC]
+RewriteRule (.*) - [F]
